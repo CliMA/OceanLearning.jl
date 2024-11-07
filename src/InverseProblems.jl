@@ -589,7 +589,7 @@ function transpose_model_output(collector_grid::SingleColumnGrid, time_series_co
             data = OffsetArray(view(raw_data, :, j:j, :, :), 0, 0, -Hz, 0)
 
             time_series = FieldTimeSeries{LX, LY, LZ}(data, grid, InMemory(), nothing,
-                                                      indices, times, nothing, nothing, Linear())
+                                                      indices, times, nothing, nothing, Linear(), nothing)
             time_serieses[name] = time_series
         end
 
