@@ -2,7 +2,7 @@ module Parameters
 
 export FreeParameters, lognormal, ScaledLogitNormal
 
-using Oceananigans.Architectures: CPU, arch_array, architecture
+using Oceananigans.Architectures: CPU, on_architecture, architecture
 using Oceananigans.Utils: prettysummary
 using Oceananigans.TurbulenceClosures: AbstractTurbulenceClosure, ScalarDiffusivity
 using Oceananigans.TurbulenceClosures: AbstractTimeDiscretization, ExplicitTimeDiscretization
@@ -590,13 +590,13 @@ the parameters for the any closure that is of type `AbstractArray`. The `arch`it
 (`CPU()` or `GPU()`) defines whethere `Array` or `CuArray` is returned.
 """
 function new_closure_ensemble(closures::AbstractArray, parameter_ensemble, arch)
-    cpu_closures = arch_array(CPU(), closures)
+    cpu_closures = on_architecture(CPU(), closures)
 
     for (k, θₖ) in enumerate(parameter_ensemble)
         update_closure_ensemble_member!(cpu_closures, k, θₖ)
     end
 
-    return arch_array(arch, cpu_closures)
+    return on_architecture(arch, cpu_closures)
 end
 
 new_closure_ensemble(closures::Tuple, parameter_ensemble, arch) = 

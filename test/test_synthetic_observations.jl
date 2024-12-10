@@ -11,8 +11,8 @@ using Oceananigans.TurbulenceClosures: ConvectiveAdjustmentVerticalDiffusivity
     # Generate synthetic observations
     Nz = 16
     Lz = 128
-    Qᵇ = 1e-8
-    Qᵘ = -1e-5
+    Jᵇ = 1e-8
+    Jᵘ = -1e-5
     Δt = 20.0
     f₀ = 1e-4
     N² = 1e-5
@@ -34,17 +34,17 @@ using Oceananigans.TurbulenceClosures: ConvectiveAdjustmentVerticalDiffusivity
     closure = ConvectiveAdjustmentVerticalDiffusivity(; convective_κz, background_κz, convective_νz, background_νz)
     coriolis = FPlane(f=f₀)
 
-    u_bcs = FieldBoundaryConditions(top = FluxBoundaryCondition(Qᵘ))
-    b_bcs = FieldBoundaryConditions(top = FluxBoundaryCondition(Qᵇ), bottom = GradientBoundaryCondition(N²))
+    u_bcs = FieldBoundaryConditions(top = FluxBoundaryCondition(Jᵘ))
+    b_bcs = FieldBoundaryConditions(top = FluxBoundaryCondition(Jᵇ), bottom = GradientBoundaryCondition(N²))
 
     model = HydrostaticFreeSurfaceModel(; grid, coriolis, closure,
                                         tracers = :b,
                                         buoyancy = BuoyancyTracer(),
                                         boundary_conditions = (; u=u_bcs, b=b_bcs))
 
-    set!(model, b = (x, y, z) -> N² * z)
+    set!(model, b = z -> N² * z)
     simulation = Simulation(model; Δt, stop_time)
-    init_with_parameters(file, model) = file["parameters"] = (; Qᵇ, Qᵘ, Δt, N², tracers=keys(model.tracers))
+    init_with_parameters(file, model) = file["parameters"] = (; Jᵇ, Jᵘ, Δt, N², tracers=keys(model.tracers))
     simulation.output_writers[:fields] = JLD2OutputWriter(model, merge(model.velocities, model.tracers),
                                                           schedule = TimeInterval(save_interval),
                                                           filename = experiment_name,

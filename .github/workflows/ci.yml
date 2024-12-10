@@ -1,4 +1,8 @@
 name: CI
+
+env:
+  DATADEPS_ALWAYS_ACCEPT: true
+
 on:
   push:
     branches: [main]
@@ -12,27 +16,22 @@ jobs:
       fail-fast: false
       matrix:
         version:
-          - '1.8'
+          - '1.10'
           # We don't want to test on Julia versions more recent than 1.6 until we
           # figure out a robust solution for serializing / deserializing Oceananigans Grids.
           # - '1'   # automatically expands to the latest stable 1.x release of Julia
           # - nightly
         os:
           - ubuntu-latest
+          - windows-latest
         arch:
           - x64
           - x86
         include:
           # test macOS and Windows with latest Julia only
           - os: macOS-latest
-            arch: x64
-            version: 1.8
-          - os: windows-latest
-            arch: x64
-            version: 1.8
-          - os: windows-latest
-            arch: x86
-            version: 1.8
+            arch: arm64
+            version: '1.10'
     steps:
       - uses: actions/checkout@v3
       - uses: julia-actions/setup-julia@latest

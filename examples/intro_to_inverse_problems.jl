@@ -19,7 +19,7 @@
 using ParameterEstimocean
 
 using Oceananigans
-using Oceananigans.Architectures: arch_array
+using Oceananigans.Architectures: on_architecture
 using Oceananigans.Units
 using Oceananigans.Models.HydrostaticFreeSurfaceModels: ColumnEnsembleSize
 using Oceananigans.TurbulenceClosures: ConvectiveAdjustmentVerticalDiffusivity
@@ -64,7 +64,7 @@ function extract_perfect_parameters(observations, Nensemble)
         Qᵘ[:, j] .= obs.metadata.parameters.Qᵘ
         Qᵇ[:, j] .= obs.metadata.parameters.Qᵇ
         N²[:, j] .= obs.metadata.parameters.N²
-        f[:, j] .= obs.metadata.coriolis.f
+         f[:, j] .= obs.metadata.coriolis.f
     end
 
     file = jldopen(first(observations).path)
@@ -90,10 +90,10 @@ function build_ensemble_simulation(observations, arch=CPU(); Nensemble=1)
     column_ensemble_size = ColumnEnsembleSize(Nz=Nz, ensemble=(Nensemble, Nbatch), Hz=Hz)
     ensemble_grid = RectilinearGrid(arch, size = column_ensemble_size, topology = (Flat, Flat, Bounded), z = (-Lz, 0))
 
-    coriolis_ensemble = arch_array(arch, [FPlane(f=f[i, j]) for i = 1:Nensemble, j=1:Nbatch])
-    closure_ensemble = arch_array(arch, [deepcopy(closure) for i = 1:Nensemble, j=1:Nbatch])
+    coriolis_ensemble = on_architecture(arch, [FPlane(f=f[i, j]) for i = 1:Nensemble, j=1:Nbatch])
+    closure_ensemble = on_architecture(arch, [deepcopy(closure) for i = 1:Nensemble, j=1:Nbatch])
 
-    Qᵘ, Qᵇ, N² = Tuple(arch_array(arch, p) for p in (Qᵘ, Qᵇ, N²))
+    Qᵘ, Qᵇ, N² = Tuple(on_architecture(arch, p) for p in (Qᵘ, Qᵇ, N²))
 
     u_bcs = FieldBoundaryConditions(top = FluxBoundaryCondition(Qᵘ))
     b_bcs = FieldBoundaryConditions(top = FluxBoundaryCondition(Qᵇ), bottom = GradientBoundaryCondition(N²))

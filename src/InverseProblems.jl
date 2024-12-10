@@ -30,9 +30,9 @@ using ..Observations:
 
 import ..Parameters: closure_with_parameters
 
-using Oceananigans: run!, fields, FieldTimeSeries, CPU
-using Oceananigans.Architectures: architecture
-using Oceananigans.OutputReaders: InMemory
+using Oceananigans: run!, fields, FieldTimeSeries
+using Oceananigans.Architectures: architecture, CPU, GPU
+using Oceananigans.OutputReaders: InMemory, Linear
 using Oceananigans.Fields: interior, location
 using Oceananigans.Utils: prettysummary
 using Oceananigans.Grids: Flat, Bounded,
@@ -41,6 +41,7 @@ using Oceananigans.Grids: Flat, Bounded,
                           topology, halo_size,
                           interior_parent_indices,
                           cpu_face_constructor_z
+
 using Oceananigans.Models.HydrostaticFreeSurfaceModels: SingleColumnGrid, YZSliceGrid, ColumnEnsembleSize
 
 import ..Transformations: normalize!
@@ -354,10 +355,25 @@ Base.length(batch::BatchedInverseProblem) = length(batch.batch)
 Nensemble(batched_ip::BatchedInverseProblem) = Nensemble(first(batched_ip.batch))
 
 function collect_forward_maps_asynchronously!(outputs, batched_ip, parameters; kw...)
-    for n = 1:length(batched_ip)
-        ip = batched_ip[n]
-        forward_map_output = forward_map(ip, parameters; kw...)
-        outputs[n] = batched_ip.weights[n] * forward_map_output
+
+    ip1 = first(batched_ip)
+    grid = ip1.simulation.model.grid
+    arch = architecture(grid)
+
+    if arch isa GPU
+        for n = 1:length(batched_ip)
+            ip = batched_ip[n]
+            forward_map_output = forward_map(ip, parameters; kw...)
+            outputs[n] = batched_ip.weights[n] * forward_map_output
+        end
+    end
+
+    if arch isa CPU
+        asyncmap(1:length(batched_ip), ntasks=10) do n
+            ip = batched_ip[n]
+            forward_map_output = forward_map(ip, parameters; kw...)
+            outputs[n] = batched_ip.weights[n] * forward_map_output
+        end
     end
 
     return outputs
@@ -572,7 +588,8 @@ function transpose_model_output(collector_grid::SingleColumnGrid, time_series_co
             raw_data = parent(field_time_series.data)
             data = OffsetArray(view(raw_data, :, j:j, :, :), 0, 0, -Hz, 0)
 
-            time_series = FieldTimeSeries{LX, LY, LZ, InMemory}(data, grid, nothing, times, indices)
+            time_series = FieldTimeSeries{LX, LY, LZ}(data, grid, InMemory(), nothing,
+                                                      indices, times, nothing, nothing, Linear(), nothing)
             time_serieses[name] = time_series
         end
 

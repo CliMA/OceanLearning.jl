@@ -8,7 +8,7 @@ using Oceananigans.Models.HydrostaticFreeSurfaceModels: SliceEnsembleSize
 using Oceananigans.TurbulenceClosures: FluxTapering
 using LinearAlgebra, CairoMakie, DataDeps, JLD2
 
-using Oceananigans.Architectures: arch_array
+using Oceananigans.Architectures: on_architecture
 
 # using ElectronDisplay
 
@@ -84,7 +84,7 @@ close(file)
 
 gent_mcwilliams_diffusivity = IsopycnalSkewSymmetricDiffusivity(slope_limiter = FluxTapering(1e-2))
 
-gm_closure_ensemble = arch_array(architecture, [deepcopy(gent_mcwilliams_diffusivity) for _ = 1:Nensemble])
+gm_closure_ensemble = on_architecture(architecture, [deepcopy(gent_mcwilliams_diffusivity) for _ = 1:Nensemble])
 
 closure_ensemble = (gm_closure_ensemble, closures[1], closures[2])
 
