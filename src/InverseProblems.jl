@@ -613,7 +613,8 @@ end
 function drop_y_dimension(grid::SingleColumnGrid)
     new_size = ColumnEnsembleSize(Nz=grid.Nz, ensemble=(grid.Nx, 1), Hz=grid.Hz)
     new_halo_size = ColumnEnsembleSize(Nz=1, Hz=grid.Hz)
-    z_domain = cpu_face_constructor_z(grid)
+    # z_domain = cpu_face_constructor_z(grid)
+    z_domain = (-grid.Lz, 0) 
     new_grid = RectilinearGrid(size=new_size, halo=new_halo_size, z=z_domain, topology=(Flat, Flat, Bounded))
     return new_grid
 end

@@ -417,14 +417,14 @@ end
 const ParameterValue = Union{Number, AbstractArray}
 
 """
-    construct_object(specification_dict, parameters; name=nothing, type_parameters=nothing)
+    construct_object(specification_dict, parameters, name=nothing, type_parameters=nothing)
     
-    construct_object(d::ParameterValue, parameters; name=nothing)
+    construct_object(d::ParameterValue, parameters, name=nothing)
 
 Return a composite type object whose properties are prescribed by the `specification_dict`
 dictionary. All parameter values are given the values in `specification_dict` *unless* they
 are included as a parameter name-value pair in the named tuple `parameters`, in which case
-the value in `parameters` is asigned.
+the value in `parameters` is assigned.
 
 The `construct_object` is recursively called upon every property that is included in `specification_dict`
 until a property with a numerical value is reached. The object's constructor name must be
@@ -459,25 +459,55 @@ julia> another_new_closure = construct_object(specification_dict, (b=π, c=2π))
 Closure(ClosureSubModel(1, π), 6.283185307179586)
 ```
 """
-construct_object(d, parameters; name=nothing) = d # fallback
-construct_object(d::ParameterValue, parameters; name=nothing) =
+@inline construct_object(d, parameters, tp, name, type=nothing) = d # fallback
+@inline construct_object(d::ParameterValue, parameters, tp, name, type=nothing) =
     name ∈ keys(parameters) ? getproperty(parameters, name) : d # replace parameter values with new ones
 
-function construct_object(specification_dict::OrderedDict, parameters; name=nothing, type_parameters=nothing)
-
+@inline function construct_object(specification_dict::OrderedDict, parameters, tp=nothing, name=nothing)
     type = Constructor = specification_dict[:type]
+    return construct_object(specification_dict, parameters, tp, name, type)
+end
 
-    # Recurisve construction
-    if type === NamedTuple
-        return NamedTuple(name => construct_object(specification_dict[name], parameters; name)
-                          for name in keys(specification_dict) if name != :type)
-    else
-        
-        # if name != :type]
-        kwargs_vector = [construct_object(specification_dict[name], parameters; name) for name in fieldnames(type)]
-    
-        return isnothing(type_parameters) ? Constructor(kwargs_vector...) : Constructor{type_parameters...}(kwargs_vector...)
-   end
+@inline function construct_object(specification_dict::OrderedDict, parameters, tp, name, ::Type{NamedTuple})
+    type = Constructor = specification_dict[:type]
+    names = fieldnames(type)
+    names = filter(n -> n == :type, names)
+    N = length(names)
+
+    values = ntuple(Val(N)) do n
+        name = names[n]
+        construct_object(specification_dict[name], parameters, nothing, name)
+    end
+
+    return NamedTuple{names}(values)
+end
+
+@inline function construct_object(specification_dict::OrderedDict, parameters, ::Nothing, name, type)
+    type = Constructor = specification_dict[:type]
+    names = fieldnames(type)
+    N = length(names)
+
+    values = ntuple(Val(N)) do n
+        name = names[n]
+        construct_object(specification_dict[name], parameters, nothing, name)
+    end
+
+    kwargs = NamedTuple{names}(values)
+    return Constructor(kwargs...)
+end
+
+@inline function construct_object(specification_dict::OrderedDict, parameters, tp, name, type)
+    type = Constructor = specification_dict[:type]
+    names = fieldnames(type)
+    N = length(names)
+
+    values = ntuple(Val(N)) do n
+        name = names[n]
+        construct_object(specification_dict[name], parameters, nothing, name)
+    end
+
+    kwargs = NamedTuple{names}(values)
+    return Constructor{tp...}(kwargs...)
 end
 
 """
@@ -543,13 +573,13 @@ closure_with_parameters(closure, parameters) = construct_object(dict_properties(
 closure_with_parameters(closure, ::Nothing) = nothing
 
 closure_with_parameters(closure::AbstractTurbulenceClosure{ExplicitTimeDiscretization}, parameters) =
-    construct_object(dict_properties(closure), parameters, type_parameters=nothing)
+    construct_object(dict_properties(closure), parameters)
 
 closure_with_parameters(closure::AbstractTurbulenceClosure{TD}, parameters) where {TD <: AbstractTimeDiscretization} =
-    construct_object(dict_properties(closure), parameters; type_parameters=tuple(TD))
+    construct_object(dict_properties(closure), parameters, tuple(TD))
 
 closure_with_parameters(closure::ScalarDiffusivity{TD, F}, parameters) where {TD, F} =
-    construct_object(dict_properties(closure), parameters; type_parameters=(TD, F))
+    construct_object(dict_properties(closure), parameters, (TD, F))
 
 closure_with_parameters(closures::Tuple, parameters) =
     Tuple(closure_with_parameters(closure, parameters) for closure in closures)
@@ -607,3 +637,4 @@ new_closure_ensemble(closure::Union{Tuple, AbstractArray}, ::Nothing, arch) = cl
 new_closure_ensemble(closure, parameter_ensemble, arch) = closure
 
 end # module
+
